@@ -164,6 +164,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     new_columns.reset_index(inplace=True)
     new_columns.rename(columns={"index": "Date"}, inplace=True)
 
+    # loop over the time series for each well in the project to generate new time series
     for col in df_columns:
         well_name = wells[wells["ICOLWL"] == col]["Name"].to_numpy()[0]
         nc_column = wells[wells["ICOLWL"] == col]["ICOLWL2"].to_numpy()[0]
@@ -198,13 +199,16 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
         plt.close()
         print(f"Plot for {well_name} saved")
 
+    # merge the columns for the new well time series with the original pump rates time series
     proj_pump_rates = pd.merge(pump_rates, new_columns, on="Date")
 
+    # generates chunks to write pump rates file to not run out of memory
     indices = np.arange(0, len(proj_pump_rates), 16)
 
     if indices[-1] != len(proj_pump_rates):
         indices = np.append(indices, len(proj_pump_rates))
 
+    # write the pumping rates data file
     with open(f"{scenario_folder}/{output_folder}/{title}.DAT", "w") as f:
         f.write(
             " " * 4 + "{:<49d}".format(proj_pump_rates.shape[-1] - 1) + "/ NCOLPUMP\n"
@@ -234,17 +238,23 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     # write well specification input file
     print(f"Writing well specification input file for project {proj_no} of {len(transfer_projects)}: {proj}")
     
+    # set title for well specification file
     ws_title = f"{scenario_year}_WELLSPEC_{scenario:02d}"
-    proj_wells = wells[wells["Owner"] == proj].copy().reset_index(drop=True)
 
+    # create a copy of the wells for the project
+    proj_wells = wells[wells["Owner"] == proj].copy().reset_index(drop=True)
+    
+    # generate new IDs for the duplicated wells
     proj_wells["ID"] = np.arange(len(wells) + 1, len(wells) + len(proj_wells) + 1)
 
+    # fill in values for other columns
     proj_wells["ICOLWL"] = proj_wells["ICOLWL2"]
     proj_wells["ICWLMAX"] = proj_wells["ICOLWL2"]
     proj_wells["TYPDSTWL"] = 0
     proj_wells["DSTWL"] = 0
     proj_wells["ICFIRIGWL"] = 0
 
+    # concatenate the original well location information with the project-specific wells (duplicates)
     update_ws = pd.concat(
         [
             ws,
@@ -255,6 +265,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
         ignore_index=True,
     )
 
+    # concatenate the original well pumping information with the project-specific wells (duplicates)
     update_wc = pd.concat(
         [
             wc,
@@ -276,6 +287,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
         ignore_index=True,
     )
 
+    # write the wellspec data file
     write_well_specifications(
         f"{scenario_folder}/{output_folder}/{ws_title}.DAT",
         update_ws,
