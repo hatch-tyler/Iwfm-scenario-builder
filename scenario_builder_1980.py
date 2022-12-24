@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from write_pumprates import write_pumping_rates
 from write_wellspec import write_well_specifications
 
 matplotlib.use('Agg')
@@ -123,17 +124,21 @@ pump_rates = (
     pump_rates[pump_rates["Date"] >= "1973-10-31"].copy().reset_index(drop=True)
 )
 
-def format_date(date_col):
-    return date_col.strftime("%m/%d/%Y_24:00")
-
 # loop through each project to generate the pumping timeseries file
 for proj_no, proj in enumerate(transfer_projects, start=1):
 
     print(f"Writing pumping time series file for project {proj_no} of {len(transfer_projects)}: {proj}")
 
+    # get ID from 'Scenario' column in TransferProjects.csv
     scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
+
+    # set title of pumping rates file for scenario
     title = f"{scenario_year}_PUMPING_{scenario:02d}"
+    
+    # create a list of pumping column references for the project wells
     proj_wells = wells[wells["Owner"] == proj]["ICOLWL"].tolist()
+    
+    # create a new dataframe (copy not a slice) of the pumping time series for the project wells
     df = pump_rates[["Date"] + proj_wells].copy()
 
     # get column names for wells in transfer project
@@ -202,40 +207,14 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     # merge the columns for the new well time series with the original pump rates time series
     proj_pump_rates = pd.merge(pump_rates, new_columns, on="Date")
 
-    # generates chunks to write pump rates file to not run out of memory
-    indices = np.arange(0, len(proj_pump_rates), 16)
+    # write pumping rates time series data file for project
+    write_pumping_rates(
+        f"{scenario_folder}/{output_folder}/{title}.DAT",
+        proj_pump_rates,
+        16
+    )
 
-    if indices[-1] != len(proj_pump_rates):
-        indices = np.append(indices, len(proj_pump_rates))
-
-    # write the pumping rates data file
-    with open(f"{scenario_folder}/{output_folder}/{title}.DAT", "w") as f:
-        f.write(
-            " " * 4 + "{:<49d}".format(proj_pump_rates.shape[-1] - 1) + "/ NCOLPUMP\n"
-        )
-        f.write(" " * 4 + "{:<49.1f}".format(43560.0) + "/ FACTPUMP\n")
-        f.write(" " * 4 + "{:<49d}".format(1) + "/ NSPPUMP\n")
-        f.write(" " * 4 + "{:<49d}".format(0) + "/ NFQPUMP\n")
-        f.write(" " * 4 + "{:<49s}".format("") + "/ DSSFL\n")
-        #proj_pump_rates.to_string(
-        #    f,
-        #    header=False,
-        #    index=False,
-        #    formatters={"Date": format_date},
-        #    float_format="%9.3f",
-        #)   
-        for i, val in enumerate(indices[:-1], start=1):
-            print(f"Writing chunk: {i}")
-            rows = proj_pump_rates.iloc[indices[i-1]:indices[i]]
-            rows.to_string(
-                f,
-                header=False,
-                index=False,
-                formatters={"Date": format_date},
-                float_format="%9.3f",
-            )
-
-    # write well specification input file
+    # set up project well specification data to generate input file
     print(f"Writing well specification input file for project {proj_no} of {len(transfer_projects)}: {proj}")
     
     # set title for well specification file
