@@ -29,7 +29,14 @@ class WellProperties:
         return f"WellProperties(well_id={self.well_id}, x={self.x}, y={self.y}, diameter={self.diameter}, top_perf={self.top_perf}, bottom_perf={self.bottom_perf})"
 
     def to_dict(self):
-        return self.__dict__
+        return dict(
+            ID=self.well_id,
+            XWELL=self.x,
+            YWELL=self.y,
+            RWELL=self.diameter,
+            PERFT=self.top_perf,
+            PERFB=self.bottom_perf
+        )
 
 
 class WellPumpingConfig:
@@ -61,7 +68,18 @@ class WellPumpingConfig:
         return f"WellPumpingConfig(well_id={self.well_id}, col_pumping={self.col_pumping}, pumping_fraction={self.pumping_fraction}, well_option={self.well_option}, well_destination_type={self.well_destination_type}, well_destination={self.well_destination}, col_irrig_fraction={self.col_irrig_fraction}, col_supply_adjust={self.col_supply_adjust}, col_max_pumping={self.col_max_pumping}, max_pumping_fraction={self.max_pumping_fraction}"
 
     def to_dict(self):
-        return self.__dict__
+        return dict(
+            ID=self.well_id,
+            ICOLWL=self.col_pumping,
+            FRACWL=self.pumping_fraction,
+            IOPTWL=self.well_option,
+            TYPDSTWL=self.well_destination_type,
+            DSTWL=self.well_destination,
+            ICFIRIGWL=self.col_irrig_fraction,
+            ICADJWL=self.col_supply_adjust,
+            ICWLMAX=self.col_max_pumping,
+            FWLMAX=self.max_pumping_fraction
+        )
 
 
 class ElementGroup:
@@ -73,13 +91,26 @@ class ElementGroup:
     def __repr__(self):
         return f"ElementGroup(elemgrp_id={self.elemgrp_id}, n_elements={self.n_elements})"
 
-    def to_string_list(self) -> list:
+    def to_string_list(self, end='\n') -> list:
+        """
+        Convert object to list of strings
+
+        Parameters
+        ----------
+        end : str default '\n'
+            end character for string
+
+        Returns
+        -------
+        list
+            list of strings representing the element group
+        """
         elem_grp_list = []
         for i, e in enumerate(self.elements):
             if i == 0:
-                elem_grp_list.append(f"{self.elemgrp_id:>7d}{self.n_elements:>14d}{e:>11d}")
+                elem_grp_list.append(f"{self.elemgrp_id:>7d}{self.n_elements:>14d}{e:>11d}{end}")
             else:
-                elem_grp_list.append(f"{e:>32d}")
+                elem_grp_list.append(f"{e:>32d}{end}")
 
         return elem_grp_list
 
@@ -117,11 +148,19 @@ class IWFMWells:
 
         return {k: [ws_dict[k] for ws_dict in ws] for k in ws[0]}
 
+    def get_property_names(self) -> list:
+        names = list(self.get_properties_as_dict().keys())
+        return names
+
     def get_pump_config_as_dict(self) -> dict:
         wc = self.get_pump_config()
         wp = [w.to_dict() for w in wc]
 
         return {k: [wc_dict[k] for wc_dict in wp] for k in wp[0]}
+
+    def get_pump_config_names(self) -> list:
+        names = list(self.get_pump_config_as_dict().keys())
+        return names
 
     def to_dataframe(self, which='all') -> pd.DataFrame:
         if not isinstance(which, str):
@@ -134,7 +173,7 @@ class IWFMWells:
         wc_df = pd.DataFrame(self.get_pump_config_as_dict())
 
         if which == 'all':
-            return pd.merge(wp_df, wc_df, on='well_id')
+            return pd.merge(wp_df, wc_df, on='ID')
 
         if which == 'properties':
             return wp_df
@@ -273,10 +312,17 @@ if __name__ == "__main__":
     wellspec_file = "Simulation/Groundwater/C2VSimFG_WellSpec.dat"
     c2vsimfg_wells = IWFMWells.from_file(wellspec_file)
 
+    wells = c2vsimfg_wells.to_dataframe()
+
+    print(wells.head())
+
     element_groups = c2vsimfg_wells.get_element_groups_as_list()
     
     for grp in element_groups:
         print(grp)
+
+    print(c2vsimfg_wells.get_property_names())
+    print(c2vsimfg_wells.get_pump_config_names())
 
     
 
