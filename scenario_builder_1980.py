@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from read_wellspec import IWFMWells
 from generate_scenario_pumping import generate_pumping
 from write_pumprates import write_pumping_rates
 from write_wellspec import write_well_specifications
@@ -42,51 +43,21 @@ elif not os.path.exists(os.path.join(scenario_folder, output_folder)):
 elif not os.path.exists(os.path.join(scenario_folder, output_folder, qa_folder)):
     os.mkdir(os.path.join(scenario_folder, output_folder, qa_folder))
 
-# get well specification information from file
-ws_cols = "ID       XWELL     YWELL       RWELL      PERFT      PERFB"
+# set full path to well spec file
+well_spec_file = os.path.join(gw_path, ws_file)
 
-ws_path = os.path.join(gw_path, ws_file)
-
-if not os.path.exists(ws_path):
-    print(f"{ws_file} does not exist")
-
-ws = pd.read_csv(
-    ws_path,
-    header=None,
-    names=ws_cols.split(),
-    skiprows=94,
-    nrows=610,
-    comment="/",
-    delim_whitespace=True,
-)
+# read well specification file
+well_spec = IWFMWells.from_file(well_spec_file)
+wells = well_spec.to_dataframe()
 
 # read well names and owners
 well_names = pd.read_csv(os.path.join(gw_path, well_names_file))
 
 # join well names and owners with well specification information
-ws = ws.join(well_names)
-
-# get well characteristics from file
-wc_cols = "ID      ICOLWL   FRACWL    IOPTWL   TYPDSTWL    DSTWL   ICFIRIGWL   ICADJWL  ICWLMAX   FWLMAX"
-
-wc = pd.read_csv(
-    os.path.join(gw_path, ws_file),
-    header=None,
-    names=wc_cols.split(),
-    skiprows=753,
-    nrows=610,
-    delim_whitespace=True,
-)
-
-# combine well specifications and well characteristics using the well ID column
-wells = pd.merge(ws, wc, on="ID")
+wells = wells.join(well_names)
 
 # read element groups from well specifications file
-element_groups = []
-with open(os.path.join(gw_path, ws_file), "r") as f:
-    for i, line in enumerate(f):
-        if i >= 1381:
-            element_groups.append(line)
+element_groups = well_spec.get_element_groups_as_list()
 
 # read file containing list of projects
 projects = pd.read_csv(transfer_projects_file)
@@ -178,13 +149,15 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     proj_wells["DSTWL"] = 0
     proj_wells["ICFIRIGWL"] = 0
 
+    # get list of column names for well properties and pumping configuration
+    ws_col = well_spec.get_property_names() # may want to add name and owner here
+    wc_col = well_spec.get_pump_config_names()
+
     # concatenate the original well location information with the project-specific wells (duplicates)
     update_ws = pd.concat(
         [
-            ws,
-            proj_wells[
-                ["ID", "XWELL", "YWELL", "RWELL", "PERFT", "PERFB", "Name", "Owner"]
-            ],
+            wells[ws_col],
+            proj_wells[ws_col],
         ],
         ignore_index=True,
     )
@@ -192,21 +165,8 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     # concatenate the original well pumping information with the project-specific wells (duplicates)
     update_wc = pd.concat(
         [
-            wc,
-            proj_wells[
-                [
-                    "ID",
-                    "ICOLWL",
-                    "FRACWL",
-                    "IOPTWL",
-                    "TYPDSTWL",
-                    "DSTWL",
-                    "ICFIRIGWL",
-                    "ICADJWL",
-                    "ICWLMAX",
-                    "FWLMAX",
-                ]
-            ],
+            wells[wc_col],
+            proj_wells[wc_col],
         ],
         ignore_index=True,
     )
