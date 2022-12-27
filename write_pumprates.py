@@ -28,7 +28,7 @@ def write_pumping_rates(
                   memory issues in some cases.
     """
     # generates chunks to write pump rates file to not run out of memory
-    indices = np.arange(0, len(pump_rates_df), 16)
+    indices = np.arange(0, len(pump_rates_df), chunk_size)
 
     if indices[-1] != len(pump_rates_df):
         indices = np.append(indices, len(pump_rates_df))
