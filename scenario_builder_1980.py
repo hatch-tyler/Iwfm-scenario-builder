@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from read_wellspec import IWFMWells
+from read_pumprates import IWFMPumpRates
 from generate_scenario_pumping import generate_pumping
 from write_pumprates import write_pumping_rates
 from write_wellspec import write_well_specifications
@@ -21,7 +22,7 @@ matplotlib.use('Agg')
 # input information
 gw_path = "Simulation/Groundwater"
 ws_file = "C2VSimFG_WellSpec.dat"
-pumprates_file = "C2VSimFG_PumpRates.dat"
+pr_file = "C2VSimFG_PumpRates.dat"
 well_names_file = "well_names_and_owners.csv"
 transfer_projects_file = "TransferProjects.csv"
 scenario_year = 1980
@@ -43,6 +44,11 @@ elif not os.path.exists(os.path.join(scenario_folder, output_folder)):
 elif not os.path.exists(os.path.join(scenario_folder, output_folder, qa_folder)):
     os.mkdir(os.path.join(scenario_folder, output_folder, qa_folder))
 
+# read file containing list of projects
+projects = pd.read_csv(transfer_projects_file)
+
+transfer_projects = projects["Project"].tolist()
+
 # set full path to well spec file
 well_spec_file = os.path.join(gw_path, ws_file)
 
@@ -59,14 +65,13 @@ wells = wells.join(well_names)
 # read element groups from well specifications file
 element_groups = well_spec.get_element_groups_as_list()
 
-# read file containing list of projects
-projects = pd.read_csv(transfer_projects_file)
-
-transfer_projects = projects["Project"].tolist()
+# read pump rates file
+pumprates_file = os.path.join(gw_path, pr_file)
+pump_rates = IWFMPumpRates.from_file(pumprates_file)
 
 # generate column reference for each project well
 wells["ICOLWL2"] = 0
-current_col = 66311 # this is ncolpump from the pump rates data file + 1
+current_col = pump_rates.n_columns + 1
 for proj in transfer_projects:
     proj_wells = wells[wells["Owner"] == proj].sort_values(by="ICOLWL")
     well_ids = proj_wells["ICOLWL"].tolist()
@@ -78,22 +83,12 @@ for proj in transfer_projects:
 
 wells.sort_values(by="ICOLWL2", inplace=True)
 
-# read the base case pump rates file
-pump_rates = pd.read_csv(
-    os.path.join(gw_path, pumprates_file),
-    header=None,
-    skiprows=5,
-    delim_whitespace=True,
-)
-
-# convert the Date column to datetime object
-pump_rates.rename(columns={0: "Date"}, inplace=True)
-pump_rates["Date"] = pump_rates["Date"].apply(lambda d: d.split("_")[0])
-pump_rates["Date"] = pd.to_datetime(pump_rates["Date"], format="%m/%d/%Y")
+# read the base case pump rates data
+pump_rates_ts = pump_rates.to_dataframe()
 
 # trim the dataset for the simulation start date
-pump_rates = (
-    pump_rates[pump_rates["Date"] >= "1973-10-31"].copy().reset_index(drop=True)
+pump_rates_ts = (
+    pump_rates_ts[pump_rates_ts["Date"] >= "1973-10-31"].copy().reset_index(drop=True)
 )
 
 # loop through each project to generate the pumping timeseries file
@@ -110,7 +105,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     new_columns = generate_pumping(
         proj,
         wells,
-        pump_rates,
+        pump_rates_ts,
         scenario_year,
         pumping_duration,
         scenario_folder,
@@ -120,7 +115,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     )
 
     # merge the columns for the new well time series with the original pump rates time series
-    proj_pump_rates = pd.merge(pump_rates, new_columns, on="Date")
+    proj_pump_rates = pd.merge(pump_rates_ts, new_columns, on="Date")
 
     # write pumping rates time series data file for project
     print(f"Writing pumping time series file for project {proj_no} of {len(transfer_projects)}: {proj}")
@@ -131,8 +126,6 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     )
 
     # set up project well specification data to generate input file
-    print(f"Writing well specification input file for project {proj_no} of {len(transfer_projects)}: {proj}")
-    
     # set title for well specification file
     ws_title = f"{scenario_year}_WELLSPEC_{scenario:02d}"
 
@@ -150,7 +143,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     proj_wells["ICFIRIGWL"] = 0
 
     # get list of column names for well properties and pumping configuration
-    ws_col = well_spec.get_property_names() # may want to add name and owner here
+    ws_col = well_spec.get_property_names() # TODO: may want to add name and owner here
     wc_col = well_spec.get_pump_config_names()
 
     # concatenate the original well location information with the project-specific wells (duplicates)
@@ -172,6 +165,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     )
 
     # write the wellspec data file
+    print(f"Writing well specification input file for project {proj_no} of {len(transfer_projects)}: {proj}")
     write_well_specifications(
         f"{scenario_folder}/{output_folder}/{ws_title}.DAT",
         update_ws,
