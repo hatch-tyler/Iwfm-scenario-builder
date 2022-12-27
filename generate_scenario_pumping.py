@@ -76,6 +76,8 @@ def generate_pumping(
     # get start month and day for first pumping
     month = df.iloc[first_index]["Date"].month
     day = df.iloc[first_index]["Date"].day
+    hour = df.iloc[first_index]['Date'].hour
+    minute = df.iloc[first_index]['Date'].minute
 
     # create template dataframe for new time series
     new_columns = pd.DataFrame(
@@ -89,9 +91,9 @@ def generate_pumping(
         well_name = wells[wells["ICOLWL"] == col]["Name"].to_numpy()[0]
         nc_column = wells[wells["ICOLWL"] == col]["ICOLWL2"].to_numpy()[0]
 
-        start_date = f"{scenario_year}-{month}-{day}"
+        start_date = f"{scenario_year}-{month}-{day} {hour}:{minute}"
 
-        # get indices for 6 months of data
+        # get indices for duration of pumping data
         start_index = new_columns[new_columns["Date"] == start_date].index[0]
         end_index = start_index + months_pumping
 
@@ -99,12 +101,13 @@ def generate_pumping(
             (df.index >= first_index) & (df.index < last_index), col
         ].to_numpy()
 
-        # set first six months of transfer pumping to same dates in scenario_year
+        # set first months of transfer pumping to same dates in scenario_year
         new_columns.loc[
             (new_columns.index >= start_index) & (new_columns.index < end_index),
             nc_column,
         ] = pumping
 
+        # plot time series for visual QA
         plot_pumping(
             proj,
             well_name,
