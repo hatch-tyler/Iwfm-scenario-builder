@@ -100,7 +100,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
 
     # set title of pumping rates file for scenario
-    title = f"{scenario_year}_PUMPING_{scenario:02d}"
+    pump_title = f"{scenario_year}_PUMPING_{scenario:02d}"
     
     new_columns = generate_pumping(
         proj,
@@ -111,7 +111,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
         scenario_folder,
         output_folder,
         qa_folder,
-        title
+        pump_title
     )
 
     # merge the columns for the new well time series with the original pump rates time series
@@ -120,7 +120,7 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     # write pumping rates time series data file for project
     print(f"Writing pumping time series file for project {proj_no} of {len(transfer_projects)}: {proj}")
     write_pumping_rates(
-        f"{scenario_folder}/{output_folder}/{title}.DAT",
+        f"{scenario_folder}/{output_folder}/{pump_title}.DAT",
         proj_pump_rates,
         16
     )
