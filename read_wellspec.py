@@ -1,8 +1,9 @@
-import os
+import re
 import numpy as np
 import pandas as pd
 
 from typing import List
+from utilities import read_data
 
 
 class WellProperties:
@@ -285,29 +286,6 @@ class IWFMWells:
         )
 
 
-def read_data(file_object):
-    while True:
-        # read next line in file
-        data = file_object.readline()
-
-        # strip off any leading or trailing whitespace
-        data = data.strip()
-
-        # check for comment characters
-        if data[0] not in ["C", "c", "*"]:
-            break
-
-    return read_until_character(data, "/")
-
-
-def read_until_character(string, character):
-    for i, ch in enumerate(string):
-        if ch == character:
-            return string[:i].strip()
-
-    return string.strip()
-
-
 if __name__ == "__main__":
     wellspec_file = "Simulation/Groundwater/C2VSimFG_WellSpec.dat"
     c2vsimfg_wells = IWFMWells.from_file(wellspec_file)
@@ -319,12 +297,7 @@ if __name__ == "__main__":
     element_groups = c2vsimfg_wells.get_element_groups_as_list()
     
     for grp in element_groups:
-        print(grp)
+        print(grp, end="")
 
     print(c2vsimfg_wells.get_property_names())
     print(c2vsimfg_wells.get_pump_config_names())
-
-    
-
-
-    
