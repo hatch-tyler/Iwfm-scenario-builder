@@ -2,9 +2,66 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+def generate_pumping_column_references(
+    projects: list,
+    well_data: pd.DataFrame,
+    well_names_file: str,
+    col_name: str,
+    n_columns: int
+) -> pd.DataFrame:
+    """
+    Generates column references for each project well
+
+    Parameters
+    ----------
+    projects : list
+        list of projects to group wells
+
+    well_data : pd.DataFrame
+        pandas DataFrame of well specification data
+
+    well_names_file : str
+        file containing linkages between wells in well specifications and projects
+
+    col_name : str
+        column name for the generated column references
+
+    n_columns : int
+        number of columns in the pump rates data file
+
+    Returns
+    -------
+    pd.DataFrame
+        pandas DataFrame with column references for each project
+    """
+    # read well names and owners
+    well_names = pd.read_csv(well_names_file)
+    
+    # join well names and owners with well specification information
+    well_data = well_data.join(well_names)
+
+    # generate new column to hold scenario pumping column references
+    well_data[col_name] = 0
+
+    # start at the next column after the base pumping file
+    current_col = n_columns + 1
+
+    # loop through each of the projects
+    for proj in projects:
+        proj_wells = well_data[well_data["Owner"] == proj].sort_values(by="ICOLWL")
+        well_ids = proj_wells["ICOLWL"].tolist()
+        
+        for wid in well_ids:
+            well_data.loc[
+                (well_data["Owner"] == proj) & (well_data["ICOLWL"] == wid), col_name
+            ] = current_col
+            current_col += 1
+    
+    return well_data
+
 def generate_pumping(
     proj: str, 
-    wells: pd.DataFrame, 
+    well_data: pd.DataFrame, 
     pump_rates: pd.DataFrame, 
     scenario_year: int, 
     pumping_duration: int,
@@ -14,14 +71,14 @@ def generate_pumping(
     title: str
 ) -> pd.DataFrame:
     """
-    Generates new pumping time series for the wells in the project and scenario.
+    Generate new pumping time series for the wells in the project and scenario.
 
     Parameters
     ----------
     proj : str
         project name
 
-    wells : pd.DataFrame
+    well_data : pd.DataFrame
         pandas DataFrame containing well specification information
 
     pump_rates: pd.DataFrame
@@ -50,11 +107,15 @@ def generate_pumping(
     pd.DataFrame
         pandas DataFrame containing new columns for the project scenario wells
     """
+    # get project wells. these need to be sorted by new column reference so they are written in order.
+    proj_wells = well_data[well_data["Owner"] == proj].sort_values(by="ICOLWL2")
+    print(proj_wells["ICOLWL"])
     # create a list of pumping column references for the project wells
-    proj_wells = wells[wells["Owner"] == proj]["ICOLWL"].tolist()
+    proj_pumping_cols = proj_wells["ICOLWL"].tolist()
+    print(proj_pumping_cols)
     
     # create a new dataframe (copy not a slice) of the pumping time series for the project wells
-    df = pump_rates[["Date"] + proj_wells].copy()
+    df = pump_rates[["Date"] + proj_pumping_cols].copy()
 
     # get column names for wells in transfer project
     df_columns = [col for col in df.columns if col != "Date"]
@@ -81,15 +142,15 @@ def generate_pumping(
 
     # create template dataframe for new time series
     new_columns = pd.DataFrame(
-        data=0, index=pump_rates["Date"].to_numpy(), columns=wells["ICOLWL2"].to_numpy()
+        data=0, index=pump_rates["Date"].to_numpy(), columns=well_data["ICOLWL2"].to_numpy()
     )
     new_columns.reset_index(inplace=True)
     new_columns.rename(columns={"index": "Date"}, inplace=True)
 
     # loop over the time series for each well in the project to generate new time series
     for col in df_columns:
-        well_name = wells[wells["ICOLWL"] == col]["Name"].to_numpy()[0]
-        nc_column = wells[wells["ICOLWL"] == col]["ICOLWL2"].to_numpy()[0]
+        well_name = well_data[well_data["ICOLWL"] == col]["Name"].to_numpy()[0]
+        nc_column = well_data[well_data["ICOLWL"] == col]["ICOLWL2"].to_numpy()[0]
 
         start_date = f"{scenario_year}-{month}-{day} {hour}:{minute}"
 
