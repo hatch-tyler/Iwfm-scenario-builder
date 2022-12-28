@@ -58,12 +58,6 @@ well_names_file = os.path.join(gw_path, wn_file)
 well_spec = IWFMWells.from_file(well_spec_file)
 wells = well_spec.to_dataframe()
 
-# read well names and owners
-#well_names = pd.read_csv(wn_file)
-
-# join well names and owners with well specification information
-#wells = wells.join(well_names)
-
 # read element groups from well specifications file
 element_groups = well_spec.get_element_groups_as_list()
 
