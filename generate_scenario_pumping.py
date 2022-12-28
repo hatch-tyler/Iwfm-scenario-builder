@@ -109,10 +109,10 @@ def generate_pumping(
     """
     # get project wells. these need to be sorted by new column reference so they are written in order.
     proj_wells = well_data[well_data["Owner"] == proj].sort_values(by="ICOLWL2")
-    print(proj_wells["ICOLWL"])
+    
     # create a list of pumping column references for the project wells
     proj_pumping_cols = proj_wells["ICOLWL"].tolist()
-    print(proj_pumping_cols)
+    
     
     # create a new dataframe (copy not a slice) of the pumping time series for the project wells
     df = pump_rates[["Date"] + proj_pumping_cols].copy()
