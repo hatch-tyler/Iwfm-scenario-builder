@@ -13,17 +13,18 @@ import matplotlib.pyplot as plt
 
 from read_wellspec import IWFMWells
 from read_pumprates import IWFMPumpRates
-from generate_scenario_pumping import generate_pumping
+from generate_scenario_pumping import generate_pumping, generate_pumping_column_references
 from write_pumprates import write_pumping_rates
 from write_wellspec import write_well_specifications
 
 matplotlib.use('Agg')
 
 # input information
+working_path = ""
 gw_path = "Simulation/Groundwater"
 ws_file = "C2VSimFG_WellSpec.dat"
 pr_file = "C2VSimFG_PumpRates.dat"
-well_names_file = "well_names_and_owners.csv"
+wn_file = "well_names_and_owners.csv"
 transfer_projects_file = "TransferProjects.csv"
 scenario_year = 1980
 pumping_duration = 6
@@ -49,18 +50,19 @@ projects = pd.read_csv(transfer_projects_file)
 
 transfer_projects = projects["Project"].tolist()
 
-# set full path to well spec file
+# set full path to well spec file and well names and owners
 well_spec_file = os.path.join(gw_path, ws_file)
+well_names_file = os.path.join(gw_path, wn_file)
 
 # read well specification file
 well_spec = IWFMWells.from_file(well_spec_file)
 wells = well_spec.to_dataframe()
 
 # read well names and owners
-well_names = pd.read_csv(os.path.join(gw_path, well_names_file))
+#well_names = pd.read_csv(wn_file)
 
 # join well names and owners with well specification information
-wells = wells.join(well_names)
+#wells = wells.join(well_names)
 
 # read element groups from well specifications file
 element_groups = well_spec.get_element_groups_as_list()
@@ -70,18 +72,13 @@ pumprates_file = os.path.join(gw_path, pr_file)
 pump_rates = IWFMPumpRates.from_file(pumprates_file)
 
 # generate column reference for each project well
-wells["ICOLWL2"] = 0
-current_col = pump_rates.n_columns + 1
-for proj in transfer_projects:
-    proj_wells = wells[wells["Owner"] == proj].sort_values(by="ICOLWL")
-    well_ids = proj_wells["ICOLWL"].tolist()
-    for wid in well_ids:
-        wells.loc[
-            (wells["Owner"] == proj) & (wells["ICOLWL"] == wid), "ICOLWL2"
-        ] = current_col
-        current_col += 1
-
-wells.sort_values(by="ICOLWL2", inplace=True)
+wells = generate_pumping_column_references(
+    transfer_projects,
+    wells,
+    well_names_file,
+    "ICOLWL2",
+    pump_rates.n_columns
+)
 
 # read the base case pump rates data
 pump_rates_ts = pump_rates.to_dataframe()
