@@ -2,13 +2,15 @@ import os
 import numpy as np
 import pandas as pd
 
+
 def format_date(date_col):
     return date_col.strftime("%m/%d/%Y_24:00")
+
 
 def write_pumping_rates(
     out_name: str,
     pump_rates_df: pd.DataFrame,
-    chunk_size : int,
+    chunk_size: int,
 ):
     """
     Write IWFM pump rates time series data file
@@ -17,7 +19,7 @@ def write_pumping_rates(
     ----------
     out_name : str
         out path and name of pump rates time series data file
-    
+
     pump_rates_df: pd.DataFrame
         pandas DataFrame containing pumping time series data needed for IWFM
 
@@ -42,16 +44,16 @@ def write_pumping_rates(
         f.write(" " * 4 + "{:<49d}".format(1) + "/ NSPPUMP\n")
         f.write(" " * 4 + "{:<49d}".format(0) + "/ NFQPUMP\n")
         f.write(" " * 4 + "{:<49s}".format("") + "/ DSSFL\n")
-        #pump_rates_df.to_string(
+        # pump_rates_df.to_string(
         #    f,
         #    header=False,
         #    index=False,
         #    formatters={"Date": format_date},
         #    float_format="%9.3f",
-        #)   
+        # )
         for i, val in enumerate(indices[:-1], start=1):
             print(f"Writing chunk: {i}")
-            rows = pump_rates_df.iloc[indices[i-1]:indices[i]]
+            rows = pump_rates_df.iloc[indices[i - 1] : indices[i]]
             rows.to_string(
                 f,
                 header=False,
