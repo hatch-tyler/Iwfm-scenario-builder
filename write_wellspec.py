@@ -2,7 +2,16 @@ import os
 import numpy as np
 import pandas as pd
 
-def write_well_specifications(out_name, wellspec_df, wellchar_df, elem_groups, fact_xy=3.2808, fact_rw=1, fact_lt=1):
+
+def write_well_specifications(
+    out_name,
+    wellspec_df,
+    wellchar_df,
+    elem_groups,
+    fact_xy=3.2808,
+    fact_rw=1,
+    fact_lt=1,
+):
     """
     Write IWFM well specification data file
 
@@ -201,8 +210,8 @@ def write_well_specifications(out_name, wellspec_df, wellchar_df, elem_groups, f
                 "YWELL": "{:>13.3f}".format,
                 "RWELL": "{:>3.1f}".format,
                 "PERFT": "{:>12.7f}".format,
-                "PERFB": "{:>12.7f}".format
-            }
+                "PERFB": "{:>12.7f}".format,
+            },
         )
         f.write("\n")
         f.write(
@@ -329,7 +338,7 @@ def write_well_specifications(out_name, wellspec_df, wellchar_df, elem_groups, f
                 "ICADJWL": "{:>9d}".format,
                 "ICWLMAX": "{:>8d}".format,
                 "FWLMAX": "{:>8.1f}".format,
-            }
+            },
         )
         f.write("\n")
         f.write(
