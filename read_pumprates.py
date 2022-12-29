@@ -6,6 +6,7 @@ from typing import List
 from datetime import datetime
 from utilities import read_data, read_until_substring
 
+
 class TimeStamp:
     def __init__(self, dt: str):
         d, t = dt.split("_")
@@ -28,6 +29,7 @@ class TimeStamp:
         else:
             return datetime.strftime(self.date, "%m/%d/%Y_%H:%M")
 
+
 class TimeStep:
     def __init__(self, timestamp: TimeStamp, values: List[float]):
         self.timestamp = timestamp
@@ -38,7 +40,7 @@ class TimeStep:
 
     def to_list(self) -> list:
         return [self.timestamp.date] + self.values
-    
+
     @classmethod
     def from_list(cls, string_list):
         values = []
@@ -53,13 +55,13 @@ class TimeStep:
 
 class IWFMPumpRates:
     def __init__(
-        self, 
-        n_columns: int, 
-        fact_pumping: float, 
-        num_timesteps: int, 
-        repetition_frequency: int, 
+        self,
+        n_columns: int,
+        fact_pumping: float,
+        num_timesteps: int,
+        repetition_frequency: int,
         dss_file: str,
-        timeseries: List[TimeStep]
+        timeseries: List[TimeStep],
     ):
         self.n_columns = n_columns
         self.fact_pumping = fact_pumping
@@ -69,7 +71,7 @@ class IWFMPumpRates:
         self.timeseries = timeseries
 
     def to_dataframe(self) -> pd.DataFrame:
-        column_names = ['Date'] + [n for n in range(1, self.n_columns + 1)]
+        column_names = ["Date"] + [n for n in range(1, self.n_columns + 1)]
         data = [step.to_list() for step in self.timeseries]
         return pd.DataFrame(data, columns=column_names)
 
@@ -87,27 +89,35 @@ class IWFMPumpRates:
             while line:
                 line_list = line.split()
                 timeseries.append(TimeStep.from_list(line_list))
-                
+
                 line = read_data(f)
 
-        return cls(n_columns, fact_pumping, num_timesteps, repetition_frequency, dss_file, timeseries)
+        return cls(
+            n_columns,
+            fact_pumping,
+            num_timesteps,
+            repetition_frequency,
+            dss_file,
+            timeseries,
+        )
 
-if __name__ =="__main__":
+
+if __name__ == "__main__":
     pump_rates_file = "Simulation/Groundwater/C2VSimFG_PumpRates.dat"
     pump_rates = IWFMPumpRates.from_file(pump_rates_file)
 
     print(pump_rates.n_columns)
     print(len(pump_rates.timeseries))
     df = pump_rates.to_dataframe()
-    #print(df.info())
+    # print(df.info())
     print(df[df["Date"] == "1980-10-31 23:59"])
     start_index = 33
-    print(df.iloc[start_index]['Date'].year)
-    print(df.iloc[start_index]['Date'].month)
-    print(df.iloc[start_index]['Date'].hour)
-    print(df.iloc[start_index]['Date'].minute)
+    print(df.iloc[start_index]["Date"].year)
+    print(df.iloc[start_index]["Date"].month)
+    print(df.iloc[start_index]["Date"].hour)
+    print(df.iloc[start_index]["Date"].minute)
 
-    #with open(pump_rates_file, 'r') as f:
+    # with open(pump_rates_file, 'r') as f:
     #    n_columns = read_data(f)
     #    fact_pumping = read_data(f)
     #    num_timesteps = read_data(f)
