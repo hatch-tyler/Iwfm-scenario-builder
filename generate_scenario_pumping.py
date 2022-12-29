@@ -6,75 +6,97 @@ import matplotlib.pyplot as plt
 from write_pumprates import write_pumping_rates
 from write_wellspec import write_well_specifications
 
-def generate_project_pumprates_file(
-    proj_no,
-    proj, 
-    transfer_projects, 
-    projects, 
-    scenario_year, 
-    wells, 
-    pump_rates_ts, 
-    pumping_duration, 
-    output_dir,
-    qa_dir,
+
+def generate_project_pumping_scenario(
+    proj: str,
+    projects: pd.DataFrame,
+    scenario_year: int,
+    pumping_duration: int,
+    n_columns: int,
+    wells: pd.DataFrame,
+    ws_col: list,
+    wc_col: list,
+    element_groups: list,
+    pump_rates_ts: pd.DataFrame,
+    output_dir: str,
+    qa_dir: str,
 ):
     """
-    """
-    print("Creating pumping time series data for project ")
-    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+    Create and write well specification file and pump rates file
 
+    Parameters
+    ----------
+    proj : str
+        project name
+
+    projects : pd.DataFrame
+        pandas DataFrame containing project information
+
+    scenario_year : int
+        year corresponding to project pumping
+
+    n_columns : int
+        number of columns in the pump rates data file
+
+    wells : pd.DataFrame
+        pandas DataFrame containing well specification information
+
+    ws_col : list
+        well specification column names for data block in input file
+
+    wc_col : list
+        well pumping column names for data block in input file
+
+    element_groups : list
+        element group data to write to well specification file
+
+    pump_rates_ts : pd.DataFrame
+        pandas DataFrame containing pump rate time series
+
+    output_dir : str
+        output path to project pump rates file
+
+    qa_dir : str
+        output path to project pump rates qa plot
+
+    Returns
+    -------
+    None
+        writes project data to new well specification file
+    """
     # get ID from 'Scenario' column in TransferProjects.csv
     scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
 
-    # set title of pumping rates file for scenario
-    pump_title = f"{scenario_year}_PUMPING_{scenario:02d}"
-
-    new_columns = generate_pumping(
-        proj, wells, pump_rates_ts, scenario_year, pumping_duration, qa_dir, pump_title
-    )
-
-    # merge the columns for the new well time series with the original pump rates time series
-    proj_pump_rates = pd.merge(pump_rates_ts, new_columns, on="Date")
-
-    # write pumping rates time series data file for project
-    print("Writing pumping time series file for project ")
-    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
-
-    out_pumping_file = os.path.join(output_dir, f"{pump_title}.DAT")
-    write_pumping_rates(out_pumping_file, proj_pump_rates, 16)
-
-
-def generate_project_wellspec_file(
-    proj_no, 
-    proj, 
-    transfer_projects, 
-    projects, 
-    scenario_year, 
-    wells,
-    ws_col,
-    wc_col,
-    element_groups,
-    output_dir,
-):
-    """
-    """
-    print("Creating well specifications for project ")
-    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
-
-    # get ID from 'Scenario' column in TransferProjects.csv
-    scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
+    print(f"Project {scenario} of {len(projects)}: {proj}")
 
     # set title for well specification file
     ws_title = f"{scenario_year}_WELLSPEC_{scenario:02d}"
 
-    # create the wells for the project
-    proj_wells = generate_wells(proj, wells)
+    # set title of pumping rates file for scenario
+    pump_title = f"{scenario_year}_PUMPING_{scenario:02d}"
+
+    # select the wells for the project
+    proj_wells = generate_pumping_column_references(proj, wells, "ICOLWL2", n_columns)
+
+    # generate scenario pumping time series for project
+    new_columns = generate_pumping(
+        proj,
+        proj_wells,
+        pump_rates_ts,
+        scenario_year,
+        pumping_duration,
+        qa_dir,
+        pump_title,
+    )
+
+    # create the scenario wells for the project
+    scenario_wells = generate_scenario_wells(proj_wells, len(wells))
 
     # concatenate the original well location information with the project-specific wells (duplicates)
     update_ws = pd.concat(
         [
             wells[ws_col],
-            proj_wells[ws_col],
+            scenario_wells[ws_col],
         ],
         ignore_index=True,
     )
@@ -83,39 +105,43 @@ def generate_project_wellspec_file(
     update_wc = pd.concat(
         [
             wells[wc_col],
-            proj_wells[wc_col],
+            scenario_wells[wc_col],
         ],
         ignore_index=True,
     )
 
     # write the wellspec data file
-    print("Writing well specification input file for project ")
-    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+    print("Writing well specification input file for project.")
 
     out_wells_file = os.path.join(output_dir, f"{ws_title}.DAT")
     write_well_specifications(out_wells_file, update_ws, update_wc, element_groups)
 
+    # merge the columns for the new well time series with the original pump rates time series
+    proj_pump_rates = pd.merge(pump_rates_ts, new_columns, on="Date")
+
+    # write pumping rates time series data file for project
+    print("Writing pumping time series file for project.")
+
+    out_pumping_file = os.path.join(output_dir, f"{pump_title}.DAT")
+    write_pumping_rates(out_pumping_file, proj_pump_rates, 16)
+
 
 def generate_pumping_column_references(
-    projects: list,
+    proj: str,
     well_data: pd.DataFrame,
-    well_names_file: str,
     col_name: str,
     n_columns: int,
 ) -> pd.DataFrame:
     """
-    Generates column references for each project well
+    Generates column references for each project well in a project
 
     Parameters
     ----------
-    projects : list
-        list of projects to group wells
+    proj : str
+        name of project with one or more wells
 
     well_data : pd.DataFrame
         pandas DataFrame of well specification data
-
-    well_names_file : str
-        file containing linkages between wells in well specifications and projects
 
     col_name : str
         column name for the generated column references
@@ -128,56 +154,45 @@ def generate_pumping_column_references(
     pd.DataFrame
         pandas DataFrame with column references for each project
     """
-    # read well names and owners
-    well_names = pd.read_csv(well_names_file)
-
-    # join well names and owners with well specification information
-    well_data = well_data.join(well_names)
+    # select project wells
+    proj_wells = well_data[well_data["Owner"] == proj].copy().reset_index(drop=True)
+    proj_wells.sort_values(by="ICOLWL", inplace=True)
 
     # generate new column to hold scenario pumping column references
-    well_data[col_name] = 0
+    proj_wells[col_name] = 0
 
     # start at the next column after the base pumping file
     current_col = n_columns + 1
 
-    # loop through each of the projects
-    for proj in projects:
-        proj_wells = well_data[well_data["Owner"] == proj].sort_values(by="ICOLWL")
-        well_ids = proj_wells["ICOLWL"].tolist()
+    well_ids = proj_wells["ICOLWL"].tolist()
 
-        for wid in well_ids:
-            well_data.loc[
-                (well_data["Owner"] == proj) & (well_data["ICOLWL"] == wid), col_name
-            ] = current_col
-            current_col += 1
+    # loop through each well in the project
+    for wid in well_ids:
+        proj_wells.loc[proj_wells["ICOLWL"] == wid, col_name] = current_col
+        current_col += 1
 
-    return well_data
+    return proj_wells
 
 
-def generate_wells(project: str, well_data: pd.DataFrame) -> pd.DataFrame:
+def generate_scenario_wells(proj_wells: pd.DataFrame, n_wells: int) -> pd.DataFrame:
     """
     Generate new wells for project with scenario pumping
 
     Parameters
     ----------
-    project : str
-        project name or owner with wells
+    proj : pd.DataFrame
+        pandas DataFrame containing well specifications for a project
 
-    well_data : pd.DataFrame
-        pandas DataFrame containing well specifications
+    n_wells : int
+        number of total wells in base model
 
     Returns
     -------
     pd.DataFrame
         pandas DataFrame containing project well with scenario information
     """
-    # create a copy of the wells for the project
-    proj_wells = well_data[well_data["Owner"] == project].copy().reset_index(drop=True)
-
     # generate new IDs for the duplicated wells
-    proj_wells["ID"] = np.arange(
-        len(well_data) + 1, len(well_data) + len(proj_wells) + 1
-    )
+    proj_wells["ID"] = np.arange(n_wells + 1, n_wells + len(proj_wells) + 1)
 
     # fill in values for other columns
     proj_wells["ICOLWL"] = proj_wells["ICOLWL2"]
@@ -191,7 +206,7 @@ def generate_wells(project: str, well_data: pd.DataFrame) -> pd.DataFrame:
 
 def generate_pumping(
     proj: str,
-    well_data: pd.DataFrame,
+    proj_wells: pd.DataFrame,
     pump_rates: pd.DataFrame,
     scenario_year: int,
     pumping_duration: int,
@@ -206,8 +221,8 @@ def generate_pumping(
     proj : str
         project name
 
-    well_data : pd.DataFrame
-        pandas DataFrame containing well specification information
+    proj_wells : pd.DataFrame
+        pandas DataFrame containing well specification information for project
 
     pump_rates: pd.DataFrame
         pandas DataFrame containing time series pump rates
@@ -230,7 +245,7 @@ def generate_pumping(
         pandas DataFrame containing new columns for the project scenario wells
     """
     # get project wells. these need to be sorted by new column reference so they are written in order.
-    proj_wells = well_data[well_data["Owner"] == proj].sort_values(by="ICOLWL2")
+    proj_wells = proj_wells.sort_values(by="ICOLWL2")
 
     # create a list of pumping column references for the project wells
     proj_pumping_cols = proj_wells["ICOLWL"].tolist()
@@ -267,15 +282,15 @@ def generate_pumping(
     new_columns = pd.DataFrame(
         data=0,
         index=pump_rates["Date"].to_numpy(),
-        columns=well_data["ICOLWL2"].to_numpy(),
+        columns=proj_wells["ICOLWL2"].to_numpy(),
     )
     new_columns.reset_index(inplace=True)
     new_columns.rename(columns={"index": "Date"}, inplace=True)
 
     # loop over the time series for each well in the project to generate new time series
     for col in df_columns:
-        well_name = well_data[well_data["ICOLWL"] == col]["Name"].to_numpy()[0]
-        nc_column = well_data[well_data["ICOLWL"] == col]["ICOLWL2"].to_numpy()[0]
+        well_name = proj_wells[proj_wells["ICOLWL"] == col]["Name"].to_numpy()[0]
+        nc_column = proj_wells[proj_wells["ICOLWL"] == col]["ICOLWL2"].to_numpy()[0]
 
         start_date = f"{scenario_year}-{month}-{day} {hour}:{minute}"
 
@@ -335,4 +350,4 @@ def plot_pumping(
     ax.set_title(f"{scenario_year} Pumping for {proj}\nWell: {well_name}")
     plt.savefig(out_name)
     plt.close()
-    print(f"Plot for {proj}: {well_name} saved")
+    print(f"Plot for {proj} well: {well_name} saved")
