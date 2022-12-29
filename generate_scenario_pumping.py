@@ -3,6 +3,98 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from write_pumprates import write_pumping_rates
+from write_wellspec import write_well_specifications
+
+def generate_project_pumprates_file(
+    proj_no,
+    proj, 
+    transfer_projects, 
+    projects, 
+    scenario_year, 
+    wells, 
+    pump_rates_ts, 
+    pumping_duration, 
+    output_dir,
+    qa_dir,
+):
+    """
+    """
+    print("Creating pumping time series data for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+
+    # get ID from 'Scenario' column in TransferProjects.csv
+    scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
+
+    # set title of pumping rates file for scenario
+    pump_title = f"{scenario_year}_PUMPING_{scenario:02d}"
+
+    new_columns = generate_pumping(
+        proj, wells, pump_rates_ts, scenario_year, pumping_duration, qa_dir, pump_title
+    )
+
+    # merge the columns for the new well time series with the original pump rates time series
+    proj_pump_rates = pd.merge(pump_rates_ts, new_columns, on="Date")
+
+    # write pumping rates time series data file for project
+    print("Writing pumping time series file for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+
+    out_pumping_file = os.path.join(output_dir, f"{pump_title}.DAT")
+    write_pumping_rates(out_pumping_file, proj_pump_rates, 16)
+
+
+def generate_project_wellspec_file(
+    proj_no, 
+    proj, 
+    transfer_projects, 
+    projects, 
+    scenario_year, 
+    wells,
+    ws_col,
+    wc_col,
+    element_groups,
+    output_dir,
+):
+    """
+    """
+    print("Creating well specifications for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+
+    # get ID from 'Scenario' column in TransferProjects.csv
+    scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
+
+    # set title for well specification file
+    ws_title = f"{scenario_year}_WELLSPEC_{scenario:02d}"
+
+    # create the wells for the project
+    proj_wells = generate_wells(proj, wells)
+
+    # concatenate the original well location information with the project-specific wells (duplicates)
+    update_ws = pd.concat(
+        [
+            wells[ws_col],
+            proj_wells[ws_col],
+        ],
+        ignore_index=True,
+    )
+
+    # concatenate the original well pumping information with the project-specific wells (duplicates)
+    update_wc = pd.concat(
+        [
+            wells[wc_col],
+            proj_wells[wc_col],
+        ],
+        ignore_index=True,
+    )
+
+    # write the wellspec data file
+    print("Writing well specification input file for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+
+    out_wells_file = os.path.join(output_dir, f"{ws_title}.DAT")
+    write_well_specifications(out_wells_file, update_ws, update_wc, element_groups)
+
 
 def generate_pumping_column_references(
     projects: list,
