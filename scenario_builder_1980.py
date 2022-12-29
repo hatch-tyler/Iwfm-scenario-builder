@@ -87,9 +87,8 @@ wells = generate_pumping_column_references(
 # loop through each project to generate the pumping timeseries file
 for proj_no, proj in enumerate(transfer_projects, start=1):
 
-    print(
-        f"Creating pumping time series data for project {proj_no} of {len(transfer_projects)}: {proj}"
-    )
+    print("Creating pumping time series data for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
 
     # get ID from 'Scenario' column in TransferProjects.csv
     scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
@@ -105,9 +104,9 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     proj_pump_rates = pd.merge(pump_rates_ts, new_columns, on="Date")
 
     # write pumping rates time series data file for project
-    print(
-        f"Writing pumping time series file for project {proj_no} of {len(transfer_projects)}: {proj}"
-    )
+    print("Writing pumping time series file for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+
     out_pumping_file = os.path.join(output_dir, f"{pump_title}.DAT")
     write_pumping_rates(out_pumping_file, proj_pump_rates, 16)
 
@@ -137,8 +136,8 @@ for proj_no, proj in enumerate(transfer_projects, start=1):
     )
 
     # write the wellspec data file
-    print(
-        f"Writing well specification input file for project {proj_no} of {len(transfer_projects)}: {proj}"
-    )
+    print("Writing well specification input file for project ")
+    print(f"{proj_no} of {len(transfer_projects)}: {proj}")
+    
     out_wells_file = os.path.join(output_dir, f"{ws_title}.DAT")
     write_well_specifications(out_wells_file, update_ws, update_wc, element_groups)
