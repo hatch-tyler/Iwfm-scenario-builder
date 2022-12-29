@@ -36,7 +36,7 @@ class WellProperties:
             YWELL=self.y,
             RWELL=self.diameter,
             PERFT=self.top_perf,
-            PERFB=self.bottom_perf
+            PERFB=self.bottom_perf,
         )
 
 
@@ -79,7 +79,7 @@ class WellPumpingConfig:
             ICFIRIGWL=self.col_irrig_fraction,
             ICADJWL=self.col_supply_adjust,
             ICWLMAX=self.col_max_pumping,
-            FWLMAX=self.max_pumping_fraction
+            FWLMAX=self.max_pumping_fraction,
         )
 
 
@@ -90,9 +90,11 @@ class ElementGroup:
         self.elements = elements
 
     def __repr__(self):
-        return f"ElementGroup(elemgrp_id={self.elemgrp_id}, n_elements={self.n_elements})"
+        return (
+            f"ElementGroup(elemgrp_id={self.elemgrp_id}, n_elements={self.n_elements})"
+        )
 
-    def to_string_list(self, end='\n') -> list:
+    def to_string_list(self, end="\n") -> list:
         """
         Convert object to list of strings
 
@@ -109,7 +111,9 @@ class ElementGroup:
         elem_grp_list = []
         for i, e in enumerate(self.elements):
             if i == 0:
-                elem_grp_list.append(f"{self.elemgrp_id:>7d}{self.n_elements:>14d}{e:>11d}{end}")
+                elem_grp_list.append(
+                    f"{self.elemgrp_id:>7d}{self.n_elements:>14d}{e:>11d}{end}"
+                )
             else:
                 elem_grp_list.append(f"{e:>32d}{end}")
 
@@ -163,23 +167,23 @@ class IWFMWells:
         names = list(self.get_pump_config_as_dict().keys())
         return names
 
-    def to_dataframe(self, which='all') -> pd.DataFrame:
+    def to_dataframe(self, which="all") -> pd.DataFrame:
         if not isinstance(which, str):
             raise TypeError("variable 'which' must be a string")
 
-        if which.lower() not in ['all', 'properties', 'pump_config']:
+        if which.lower() not in ["all", "properties", "pump_config"]:
             raise ValueError("Value entered is not a valid option.")
 
         wp_df = pd.DataFrame(self.get_properties_as_dict())
         wc_df = pd.DataFrame(self.get_pump_config_as_dict())
 
-        if which == 'all':
-            return pd.merge(wp_df, wc_df, on='ID')
+        if which == "all":
+            return pd.merge(wp_df, wc_df, on="ID")
 
-        if which == 'properties':
+        if which == "properties":
             return wp_df
 
-        if which == 'pump_config':
+        if which == "pump_config":
             return wc_df
 
     def get_element_groups_as_list(self) -> list:
@@ -188,7 +192,6 @@ class IWFMWells:
             grp_list += grp.to_string_list()
 
         return grp_list
-
 
     @classmethod
     def from_file(cls, file_name):
@@ -295,7 +298,7 @@ if __name__ == "__main__":
     print(wells.head())
 
     element_groups = c2vsimfg_wells.get_element_groups_as_list()
-    
+
     for grp in element_groups:
         print(grp, end="")
 
