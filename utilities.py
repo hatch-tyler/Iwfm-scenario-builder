@@ -1,3 +1,6 @@
+import os
+
+
 def read_data(file_object):
     while True:
         # read next line in file
@@ -14,7 +17,7 @@ def read_data(file_object):
         if first_char not in ["C", "c", "*"]:
             break
 
-    return read_until_substring(data, ' /')
+    return read_until_substring(data, " /")
 
 
 def read_until_character(string, character):
@@ -27,8 +30,8 @@ def read_until_character(string, character):
 
 def read_until_substring(string, substring):
     # convert tabs to spaces in string for simplicity
-    string = string.replace('\t', ' ')
-    
+    string = string.replace("\t", " ")
+
     # find index of substring in string
     idx = string.find(substring)
 
@@ -36,3 +39,24 @@ def read_until_substring(string, substring):
         return string[:idx].strip()
 
     return string.strip()
+
+
+def make_directory(path: str):
+    """
+    Make directory at specified location
+
+    Parameters
+    ----------
+    path : str
+        path to directory
+
+        ..note:: This function will create intermediate directories if
+                 they do not already exist
+
+    Returns
+    -------
+    None
+        directory is created if it does not already exist
+    """
+    if not os.path.exists(path):
+        os.makedirs(path)
