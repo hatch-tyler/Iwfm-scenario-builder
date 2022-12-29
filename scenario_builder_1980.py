@@ -6,21 +6,17 @@
 # Generates the time-series pumping file and well specifications file for each transfer project
 
 import os
-import matplotlib
-import numpy as np
+import matplotlib as mpl
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from utilities import make_directory
 from read_wellspec import IWFMWells
 from read_pumprates import IWFMPumpRates
 from generate_scenario_pumping import (
-    generate_pumping_column_references,
-    generate_project_pumprates_file,
-    generate_project_wellspec_file,
+    generate_project_pumping_scenario,
 )
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 
 # input information
 working_path = os.getcwd()
@@ -59,6 +55,12 @@ transfer_projects = projects["Project"].tolist()
 well_spec = IWFMWells.from_file(well_spec_file)
 wells = well_spec.to_dataframe()
 
+# read well names and owners
+well_names = pd.read_csv(well_names_file)
+
+# join well names and owners with well specification information
+wells = wells.join(well_names)
+
 # get list of column names for well properties and pumping configuration
 ws_col = well_spec.get_property_names()  # TODO: may want to add name and owner here
 wc_col = well_spec.get_pump_config_names()
@@ -77,38 +79,21 @@ pump_rates_ts = (
     pump_rates_ts[pump_rates_ts["Date"] >= start_date].copy().reset_index(drop=True)
 )
 
-# generate column reference for each project well
-wells = generate_pumping_column_references(
-    transfer_projects, wells, well_names_file, "ICOLWL2", pump_rates.n_columns
-)
-
 # loop through each project to generate the pumping timeseries file
-for proj_no, proj in enumerate(transfer_projects, start=1):
-
-    # generate project pump rates file
-    generate_project_pumprates_file(
-        proj_no,
-        proj,
-        transfer_projects,
-        projects,
-        scenario_year,
-        wells,
-        pump_rates_ts,
-        pumping_duration,
-        output_dir,
-        qa_dir,
-    )
+for proj in transfer_projects:
 
     # generate project well specification file
-    generate_project_wellspec_file(
-        proj_no,
+    generate_project_pumping_scenario(
         proj,
-        transfer_projects,
         projects,
         scenario_year,
+        pumping_duration,
+        pump_rates.n_columns,
         wells,
         ws_col,
         wc_col,
         element_groups,
+        pump_rates_ts,
         output_dir,
+        qa_dir,
     )
