@@ -1,4 +1,5 @@
 import os
+import zipfile
 
 
 def read_data(file_object):
@@ -60,3 +61,38 @@ def make_directory(path: str):
     """
     if not os.path.exists(path):
         os.makedirs(path)
+
+
+def zip_model(
+    zip_name: str,
+    model_path: str,
+    exclude_keywords: list = [".git", ".exe", "bin", ".dll", ".ipynb_checkpoints"],
+):
+    """
+    Add model files to zip archive
+
+    Parameters
+    ----------
+    zip_name : str
+        path and name of zip archive created
+
+    model_path : str
+        path to files to write to zip archive
+
+    exclude_keywords : list
+
+    Returns
+    -------
+    None
+        writes files to zip archive
+    """
+    with zipfile.ZipFile(zip_name, "w") as zip:
+        for root, file_path, files in os.walk(model_path):
+            for file in files:
+                fpath = os.path.join(root, file)
+                zippath = os.path.relpath(fpath, start=model_path)
+
+                include_file = all([kw not in fpath for kw in exclude_keywords])
+
+                if include_file:
+                    zip.write(fpath, zippath)
