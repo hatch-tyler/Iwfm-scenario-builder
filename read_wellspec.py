@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from typing import List
-from utilities import read_data
+from scenario_builder.utilities import read_data
 
 
 class WellProperties:

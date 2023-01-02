@@ -4,7 +4,8 @@ import pandas as pd
 
 from typing import List
 from datetime import datetime
-from utilities import read_data, read_until_substring
+
+from scenario_builder.utilities import read_data
 
 
 class TimeStamp:
