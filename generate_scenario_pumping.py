@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from write_pumprates import write_pumping_rates
-from write_wellspec import write_well_specifications
+from scenario_builder.write_pumprates import write_pumping_rates
+from scenario_builder.write_wellspec import write_well_specifications
+from scenario_builder.utilities import s3_upload
 
 
 def generate_project_pumping_scenario(
@@ -124,6 +125,12 @@ def generate_project_pumping_scenario(
 
     out_pumping_file = os.path.join(output_dir, f"{pump_title}.DAT")
     write_pumping_rates(out_pumping_file, proj_pump_rates, 16)
+
+    print(f"Uploading {out_wells_file} to S3")
+    s3_upload(out_wells_file)
+
+    print(f"Uploading {out_pumping_file} to S3")
+    s3_upload(out_pumping_file)
 
 
 def generate_pumping_column_references(
