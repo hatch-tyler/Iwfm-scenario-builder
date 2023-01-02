@@ -1,5 +1,6 @@
 import os
 import zipfile
+import awswrangler as wr
 
 
 def read_data(file_object):
@@ -96,3 +97,29 @@ def zip_model(
 
                 if include_file:
                     zip.write(fpath, zippath)
+
+
+def s3_upload(file_name: str):
+    """
+    Upload file to AWS S3 Bucket
+
+    This function relies on an environment variable RESOURCE_BUCKET
+    to specify an AWS S3 Bucket that already exists. If the environment
+    variable does not exist, it will do nothing.
+
+    Parameters
+    ----------
+    file_name: str
+        path and name of file to upload to S3
+
+    Returns
+    -------
+    None
+    """
+    base_name = os.path.basename(file_name)
+    bucket = os.getenv("RESOURCE_BUCKET")
+
+    if bucket:
+        out_path = f"s3://{bucket}/{base_name}"
+        with open(file_name, "rb") as f:
+            wr.s3.upload(local_file=f, path=out_path)
