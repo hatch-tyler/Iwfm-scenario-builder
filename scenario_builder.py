@@ -9,10 +9,10 @@ import os
 import matplotlib as mpl
 import pandas as pd
 
-from utilities import make_directory
-from read_wellspec import IWFMWells
-from read_pumprates import IWFMPumpRates
-from generate_scenario_pumping import (
+from scenario_builder.utilities import make_directory
+from scenario_builder.read_wellspec import IWFMWells
+from scenario_builder.read_pumprates import IWFMPumpRates
+from scenario_builder.generate_scenario_pumping import (
     generate_project_pumping_scenario,
 )
 
@@ -21,6 +21,7 @@ mpl.use("Agg")
 
 def scenario_builder(
     project: str,
+    projects: pd.DataFrame,
     working_path: str,
     gw_path: str,
     ws_file: str,
@@ -39,6 +40,9 @@ def scenario_builder(
     ----------
     project : str
         name of project with one or more wells
+
+    projects : pd.DataFrame
+        pandas DataFrame containing information about all projects
 
     working_path : str
         path to working directory
@@ -162,6 +166,7 @@ if __name__ == "__main__":
 
         scenario_builder(
             proj,
+            projects,
             working_path,
             gw_path,
             ws_file,
