@@ -20,7 +20,7 @@ mpl.use("Agg")
 
 
 def scenario_builder(
-    project: str,
+    scenario: int,
     projects: pd.DataFrame,
     working_path: str,
     gw_path: str,
@@ -38,8 +38,8 @@ def scenario_builder(
 
     Parameters
     ----------
-    project : str
-        name of project with one or more wells
+    scenario : int
+        ID of project with one or more wells
 
     projects : pd.DataFrame
         pandas DataFrame containing information about all projects
@@ -123,7 +123,7 @@ def scenario_builder(
 
     # generate project well specification file
     generate_project_pumping_scenario(
-        project,
+        scenario,
         projects,
         scenario_year,
         pumping_duration,
@@ -159,13 +159,13 @@ if __name__ == "__main__":
     # read file containing list of projects
     projects = pd.read_csv(projects_file)
 
-    transfer_projects = projects["Project"].tolist()
+    scenario_ids = projects["Scenario"].tolist()
 
     # loop through each project to generate the pumping timeseries file
-    for proj in transfer_projects:
+    for scenario_id in scenario_ids:
 
         scenario_builder(
-            proj,
+            scenario_id,
             projects,
             working_path,
             gw_path,
