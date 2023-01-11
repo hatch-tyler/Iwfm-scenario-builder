@@ -9,7 +9,7 @@ from scenario_builder.utilities import s3_upload
 
 
 def generate_project_pumping_scenario(
-    proj: str,
+    scenario: int,
     projects: pd.DataFrame,
     scenario_year: int,
     pumping_duration: int,
@@ -27,8 +27,8 @@ def generate_project_pumping_scenario(
 
     Parameters
     ----------
-    proj : str
-        project name
+    scenario : int
+        project ID
 
     projects : pd.DataFrame
         pandas DataFrame containing project information
@@ -65,8 +65,8 @@ def generate_project_pumping_scenario(
     None
         writes project data to new well specification file
     """
-    # get ID from 'Scenario' column in TransferProjects.csv
-    scenario = projects[projects["Project"] == proj]["Scenario"].to_numpy()[0]
+    # get project name from scenario ID
+    proj = projects[projects["Scenario"] == scenario]["Project"].tolist()[0]
 
     print(f"Project {scenario} of {len(projects)}: {proj}")
 
@@ -134,7 +134,7 @@ def generate_project_pumping_scenario(
 
 
 def generate_pumping_column_references(
-    proj: str,
+    project: str,
     well_data: pd.DataFrame,
     col_name: str,
     n_columns: int,
@@ -144,7 +144,7 @@ def generate_pumping_column_references(
 
     Parameters
     ----------
-    proj : str
+    project : str
         name of project with one or more wells
 
     well_data : pd.DataFrame
@@ -162,7 +162,7 @@ def generate_pumping_column_references(
         pandas DataFrame with column references for each project
     """
     # select project wells
-    proj_wells = well_data[well_data["Owner"] == proj].copy().reset_index(drop=True)
+    proj_wells = well_data[well_data["Owner"] == project].copy().reset_index(drop=True)
     proj_wells.sort_values(by="ICOLWL", inplace=True)
 
     # generate new column to hold scenario pumping column references
