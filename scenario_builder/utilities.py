@@ -101,6 +101,29 @@ def zip_model(
                     zip.write(fpath, zippath)
 
 
+def get_file_size(path: str):
+    """
+    Return file size
+    """
+    size = os.path.getsize(path)
+    
+    GB = 1024 ** 3
+    MB = 1024 ** 2
+    KB = 1024
+
+    if size > GB:
+        size /= GB
+        units = "GB"
+    elif size > MB:
+        size /= MB
+        units = "MB"
+    elif size > KB:
+        size /= KB
+        units = "KB"
+
+    return size, units
+
+
 def s3_upload(file_name: str):
     """
     Upload file to AWS S3 Bucket
@@ -151,16 +174,60 @@ def s3_download(file_name: str):
         with open(file_name, "wb") as f:
             wr.s3.download(path=s3_path, local_file=f)
 
-def s3_download2(file_name: str):
+def s3_upload2(file_name: str):
     """
-    Download file from AWS S3 Bucket using boto3
+    Upload file to AWS S3 Bucket
+
+    This function relies on an environment variable RESOURCE_BUCKET
+    to specify an AWS S3 Bucket that already exists. If the environment
+    variable does not exist, it will do nothing.
+
+    Parameters
+    ----------
+    file_name: str
+        path and name of file to upload to S3
+
+    Returns
+    -------
+    None
     """
     base_name = os.path.basename(file_name)
     bucket = os.getenv("RESOURCE_BUCKET")
     
     MB = 1024*1024
     config = TransferConfig(
-        multipart_threshold=500*MB,
+        multipart_threshold=100*MB,
+        max_concurrency=2,
+    )
+
+    if bucket:
+        s3 = boto3.client('s3')
+        with open(file_name, 'rb') as f:
+            s3.upload_fileobj(f, bucket, base_name, Config=config)
+
+def s3_download2(file_name: str):
+    """
+    Download file from AWS S3 Bucket using boto3
+    
+    This function relies on an environment variable RESOURCE_BUCKET
+    to specify an AWS S3 Bucket that already exists. If the environment
+    variable does not exist, it will do nothing.
+
+    Parameters
+    ----------
+    file_name : str
+        path and name of file to download from S3
+
+    Returns
+    -------
+    None
+    """
+    base_name = os.path.basename(file_name)
+    bucket = os.getenv("RESOURCE_BUCKET")
+    
+    MB = 1024*1024
+    config = TransferConfig(
+        multipart_threshold=100*MB,
         max_concurrency=2,
     )
 
