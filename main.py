@@ -18,8 +18,8 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 
 from scenario_builder.scenario_builder import scenario_builder
-from scenario_builder.utilities import make_directory
-from scenario_builder.utilities import s3_download2, s3_upload, zip_model
+from scenario_builder.utilities import make_directory, get_file_size
+from scenario_builder.utilities import s3_download2, s3_upload2, zip_model
 
 mpl.use('Agg')
 
@@ -29,9 +29,9 @@ def print_info():
     """
     print(f"Current working directory:{os.getcwd()}")
     print(f"WORKING_PATH environment variable:{os.getenv('WORKING_PATH')}")
-    print(f"{os.path.basename(__name__)} is located here: {os.path.abspath(os.path.dirname(__name__))}")
 
-def run_model(scenario="Base", scenario_year=1980):
+
+def run_model(scenario, scenario_year):
     """
     Run model
 
@@ -57,49 +57,52 @@ def run_model(scenario="Base", scenario_year=1980):
         make_directory(scenario_path)
         
         print(f"Retrieving {ws_title} from S3")
-        s3_download2(os.path.join(scenario_path, ws_title))
+        scenario_ws = os.path.join(scenario_path, ws_title) 
+        s3_download2(scenario_ws)
 
         print(f"Retrieving {pump_title} from S3")
-        s3_download2(os.path.join(scenario_path, pump_title))
+        scenario_pumping = os.path.join(scenario_path, pump_title)
+        s3_download2(scenario_pumping)
+
+        if os.path.exists(scenario_ws) and os.path.exists(scenario_pumping):
+            print(f"Copying {ws_title} to C2VSimFG_WellSpec.dat")
+            shutil.copy(scenario_ws, "/data/Simulation/Groundwater/C2VSimFG_WellSpec.dat")
+    
+            print(f"Copying {pump_title} to C2VSimFG_PumpRates.dat")
+            shutil.copy(scenario_pumping, "/data/Simulation/Groundwater/C2VSimFG_PumpRates.dat")
 
     # run bash script
     print("Running model...")
-    # run preprocessor
-    pp_path = "/data/Preprocessor"
+    path = "/data"
 
-    os.chdir(pp_path)
-    print(f"Running {os.path.basename(pp_path)}...")
     bash_path = shutil.which("bash")
-    bash_command = [bash_path, "-c", "/build/iwfm/PreProcessor C2VSimFG_Preprocessor.in"]
-    pp = Popen(
+    bash_command = [bash_path, "-c", "/data/run_model.sh"]
+    print(f"Running bash command {bash_command}...")
+    m = Popen(
         bash_command,
         stdout=PIPE,
         stderr=STDOUT,
         env={"LD_LIBRARY_PATH": "/opt/intel/oneapi/compiler/2022.0.2/linux/compiler/lib/intel64_lin"},
-        cwd=pp_path,
+        cwd=path,
     )
-    if pp.stdout is not None:
-        for raw_line in iter(pp.stdout.readline, b""):
+    if m.stdout is not None:
+        for raw_line in iter(m.stdout.readline, b""):
             line = raw_line.decode("utf-8", errors="backslashreplace").rstrip()
             print(line)
     
-    pp.wait()
+    m.wait()
 
-    print(f"The command finished with return code: {pp.returncode}")
-    if pp.returncode != 0:
+    print(f"The command finished with return code: {m.returncode}")
+    if m.returncode != 0:
         raise RuntimeError("Preprocessor did not run successfully.")
     
-    print(f"Copying PreprocessorOut.bin to Simulation directory")
-    shutil.copy("./..\\Simulation\\C2VSimFG_PreprocessorOut.bin", "../Simulation/C2VSimFG_PreprocessorOut.bin")
-    #m = subprocess.run(["/data/run_model.sh", scenario])
-
-    #if m.returncode != 0:
-    #    print(m.stderr)
-    #    raise RuntimeError("run_model script did not complete successfully.")
-
-    #zip_name = f"/data/Scenario{scenario}.zip"
-    #zip_model(zip_name, "/data/Simulation")
-    #s3_upload(zip_name)
+    zip_name = f"/data/Scenario{scenario}.zip"
+    zip_model(zip_name, "/data/Simulation")
+    
+    file_size, units = get_file_size(zip_name)
+    print(f"{zip_name} created is {file_size:6.2f} {units}")
+    
+    s3_upload2(zip_name)
 
 
 # input information
@@ -124,8 +127,8 @@ scenario_ids = projects["Scenario"].tolist()
 
 with DAG(
     dag_id="run_model_parallel",
-    schedule="0 0 * * *",
-    start_date=datetime(2022, 12, 11),
+    schedule=None,
+    start_date=datetime.today(),
     catchup=False,
     dagrun_timeout=timedelta(days=1),
     tags=["iwfm"]
@@ -138,10 +141,22 @@ with DAG(
         dag=dag,
     )
 
-    run_this_last = EmptyOperator(
-        task_id="run_this_last",
+    finish = EmptyOperator(
+        task_id="End",
         dag=dag
     )
+
+    run_base = PythonOperator(
+            task_id=f"RunBaseline",
+            python_callable=run_model,
+            op_kwargs={
+                "scenario": "base",
+                "scenario_year": scenario_year,
+            },
+            execution_timeout=timedelta(hours=12),
+            dag=dag)
+
+    check_info >> run_base >> finish
 
     # loop through each project to generate the pumping timeseries file
     for scenario_id in scenario_ids:
@@ -176,18 +191,9 @@ with DAG(
             },
             execution_timeout=timedelta(hours=12),
             dag=dag)
-        #run_scenarios = BashOperator(
-        #    task_id=f"RunScenario_{scenario_id:02d}",
-        #    bash_command="/build/iwfm/PreProcessor C2VSimFG_Preprocessor.in ",
-        #    env={
-        #        "LD_LIBRARY_PATH": "/opt/intel/oneapi/compiler/2022.0.2/linux/compiler/lib/intel64_lin",
-        #    },
-        #    execution_timeout=timedelta(hours=1),
-        #    cwd="/data/Preprocessor",
-        #    dag=dag,
-        #)
 
-        check_info >> build_scenarios >> run_scenarios >> run_this_last
+        
+        check_info >> build_scenarios >> run_scenarios >> finish
 
 if __name__ == "__main__":
     print("Testing DAG")
