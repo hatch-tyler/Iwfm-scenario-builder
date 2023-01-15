@@ -1,8 +1,8 @@
 import os
-import zipfile
 import awswrangler as wr
 import boto3
 from boto3.s3.transfer import TransferConfig
+from zipfile import ZipFile, ZIP_DEFLATED
 
 
 def read_data(file_object):
@@ -89,7 +89,7 @@ def zip_model(
     None
         writes files to zip archive
     """
-    with zipfile.ZipFile(zip_name, "w") as zip:
+    with ZipFile(zip_name, "w", compression=ZIP_DEFLATED, compresslevel=6) as zip:
         for root, file_path, files in os.walk(model_path):
             for file in files:
                 fpath = os.path.join(root, file)
