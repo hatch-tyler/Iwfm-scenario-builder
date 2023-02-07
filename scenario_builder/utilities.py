@@ -68,7 +68,7 @@ def make_directory(path: str):
 
 def zip_model(
     zip_name: str,
-    model_path: str,
+    model_path: str | list[str],
     exclude_keywords: list = [".git", ".exe", "bin", ".dll", ".ipynb_checkpoints"],
 ):
     """
@@ -79,7 +79,7 @@ def zip_model(
     zip_name : str
         path and name of zip archive created
 
-    model_path : str
+    model_path : str or list
         path to files to write to zip archive
 
     exclude_keywords : list
@@ -90,15 +90,19 @@ def zip_model(
         writes files to zip archive
     """
     with ZipFile(zip_name, "w", compression=ZIP_DEFLATED, compresslevel=6) as zip:
-        for root, file_path, files in os.walk(model_path):
-            for file in files:
-                fpath = os.path.join(root, file)
-                zippath = os.path.relpath(fpath, start=model_path)
+        if isinstance(model_path, str):
+            model_path = [model_path]
 
-                include_file = all([kw not in fpath for kw in exclude_keywords])
+        for path in model_path:
+            for root, _, files in os.walk(path):
+                for file in files:
+                    fpath = os.path.join(root, file)
+                    zippath = os.path.relpath(fpath, start=path)
 
-                if include_file:
-                    zip.write(fpath, zippath)
+                    include_file = all([kw not in fpath for kw in exclude_keywords])
+    
+                    if include_file:
+                        zip.write(fpath, zippath)
 
 
 def get_file_size(path: str):
